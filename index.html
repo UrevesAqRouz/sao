@@ -1,0 +1,2406 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAO RPG System</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="images/icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0f1a;
+            font-family: 'Orbitron', sans-serif;
+            color: #c0f0ff;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Геометрический фон SAO */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,255,0.03) 2px, rgba(0,255,255,0.03) 4px),
+                        repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,255,255,0.03) 2px, rgba(0,255,255,0.03) 4px),
+                        radial-gradient(circle at 30% 40%, rgba(0,255,255,0.1) 0%, transparent 60%);
+            z-index: -1;
+        }
+
+        #app {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 15px;
+            display: flex;
+            flex-direction: row;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        #app > aside { flex: 0 0 140px; }
+        #app > .main { flex: 1 1 auto; }
+
+        /* Панели в стиле SAO */
+        .panel {
+            background: rgba(15, 25, 45, 0.8);
+            border: 1px solid #00e5ff;
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 0 15px rgba(0,255,255,0.15), inset 0 0 10px rgba(0,255,255,0.05);
+            backdrop-filter: blur(8px);
+        }
+
+        body {
+            padding-bottom: 110px;
+        }
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(0,255,255,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,255,255,0.06) 1px, transparent 1px),
+                radial-gradient(circle, rgba(0,255,255,0.25) 1px, transparent 12px);
+            background-size: 80px 80px, 80px 80px, 20px 20px;
+            animation: gridMove 30s linear infinite;
+            opacity: 0.23;
+            z-index: -1;
+        }
+        @keyframes gridMove {
+            from { background-position: 0 0, 0 0, 0 0; }
+            to { background-position: 80px 80px, 80px 80px, 0 0; }
+        }
+
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .bottom-nav {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 8px;
+            background: rgba(10, 18, 35, 0.95);
+            border-top: 1px solid rgba(0,229,255,0.25);
+            box-shadow: 0 -4px 30px rgba(0,229,255,0.1);
+            z-index: 1002;
+        }
+        .nav-btn {
+            flex: 1;
+            max-width: 110px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 8px 6px;
+            background: rgba(0,229,255,0.08);
+            border: 1px solid rgba(0,229,255,0.2);
+            border-radius: 14px;
+            color: #a6f3ff;
+            font-size: 11px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+        .nav-btn .nav-icon {
+            font-size: 20px;
+        }
+        .nav-btn.active {
+            background: rgba(0,229,255,0.18);
+            border-color: #00e5ff;
+            color: #e8fbff;
+            box-shadow: 0 0 18px rgba(0,229,255,0.45);
+        }
+
+        .tab-btn {
+            border: none;
+            background: none;
+            padding: 0;
+        }
+
+        /* Статы персонажа */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 14px 0;
+            gap: 10px;
+        }
+        .stat-label { font-size: 13px; color: #aad4f0; }
+        .stat-value { font-size: 13px; font-weight: bold; color: #e8fbff; min-width: 64px; text-align: right; }
+        .bar-container {
+            height: 20px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+            flex: 1;
+            border: 1px solid rgba(0,229,255,0.18);
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+            position: relative;
+        }
+        .bar-fill::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: inherit;
+            filter: blur(8px);
+            opacity: 0.45;
+        }
+        .hp-bar { background: linear-gradient(90deg, #ff375d, #ff5a35); box-shadow: 0 0 14px rgba(255,75,75,0.6); }
+        .mp-bar { background: linear-gradient(90deg, #4facfe, #1e90ff); box-shadow: 0 0 14px rgba(85,170,255,0.6); }
+        .xp-bar { background: linear-gradient(90deg, #ffdc5c, #ff8f3f); box-shadow: 0 0 14px rgba(255,210,100,0.55); }
+
+        .avatar-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid rgba(0,229,255,0.18);
+            border-radius: 14px;
+            background: rgba(0,0,0,0.28);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .avatar-card:hover { transform: translateY(-1px); border-color: #00e5ff; }
+        .avatar-frame { width: 64px; height: 64px; border-radius: 18px; overflow: hidden; border: 1px solid rgba(0,229,255,0.28); background: rgba(0,0,0,0.35); }
+        .avatar-frame img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-info { display: flex; flex-direction: column; gap: 2px; }
+        .avatar-name { font-size: 16px; font-weight: 700; color: #e8fbff; }
+        .avatar-level { font-size: 12px; color: #aad4f0; }
+        .char-dropdown { display: none; }
+        .char-list { display: flex; flex-direction: column; gap: 10px; }
+        .char-list button { width: 100%; text-align: left; }
+
+        .tab-content { padding-bottom: 90px; }
+
+        .media-preview { min-height: 210px; }
+
+        .inventory-category { font-size: 12px; color: #88aacc; margin-bottom: 6px; }
+        .inventory-section { margin-top: 18px; padding: 14px; background: rgba(0,229,255,0.03); border: 1px solid rgba(0,229,255,0.18); border-radius: 12px; }
+        .inventory-item-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(0,229,255,0.15); border-radius: 10px; margin-bottom: 10px; }
+        .inventory-item-card .item-name { color: #e8fbff; font-size: 14px; }
+        .inventory-item-card .item-meta { color: #88aacc; font-size: 12px; }
+        .inventory-item-card button { padding: 6px 10px; font-size: 12px; }
+        .skill-grid { gap: 10px; }
+        .skill-slot { min-height: 70px; }
+        .skill-slot.empty::after { top: 46%; }
+        .stat-value { font-size: 18px; font-weight: bold; }
+        .bar-container {
+            height: 14px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 7px;
+            overflow: hidden;
+            margin-left: 10px;
+            flex: 1;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 7px;
+            transition: width 0.4s;
+        }
+        .hp-bar { background: linear-gradient(90deg, #ff416c, #ff4b2b); box-shadow: 0 0 10px #ff416c; }
+        .mp-bar { background: linear-gradient(90deg, #4facfe, #00f2fe); box-shadow: 0 0 10px #4facfe; }
+        .xp-bar { background: linear-gradient(90deg, #f9d423, #ff4e50); box-shadow: 0 0 10px #f9d423; }
+        /* Анимация при повышении уровня */
+        @keyframes levelPulse {
+            0% { transform: scale(1); text-shadow: 0 0 0 rgba(255,255,255,0); }
+            50% { transform: scale(1.08); text-shadow: 0 0 20px rgba(0,229,255,0.8); }
+            100% { transform: scale(1); text-shadow: 0 0 0 rgba(255,255,255,0); }
+        }
+        .level-up {
+            animation: levelPulse 800ms ease-in-out;
+        }
+        @media (max-width: 420px) {
+            #app { padding: 12px 10px; }
+            .tab-btn { padding: 8px; font-size: 13px; }
+            .stat-label { font-size: 13px; }
+            .stat-value { font-size: 16px; }
+            .add-quest-form textarea { height: 60px; }
+        }
+
+        /* Квесты */
+        .quest-card {
+            background: rgba(0,229,255,0.05);
+            border-left: 4px solid #00e5ff;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 6px;
+        }
+        .quest-title { font-size: 16px; margin-bottom: 5px; }
+        .quest-desc { font-size: 12px; color: #88aacc; margin-bottom: 8px; }
+        .quest-reward { font-size: 12px; color: #ffd700; margin-bottom: 8px; }
+        .btn {
+            background: rgba(0,229,255,0.15);
+            border: 1px solid #00e5ff;
+            color: #00e5ff;
+            padding: 8px 16px;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: 0.2s;
+        }
+        .btn:hover, .btn:active { background: #00e5ff; color: #0a0f1a; }
+        .add-quest-form input, .add-quest-form textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 6px 0;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #00e5ff;
+            border-radius: 6px;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .add-quest-form textarea { height: 50px; resize: vertical; }
+
+        /* Салют canvas */
+        #fireworks {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 999;
+            display: none;
+        }
+
+        /* Инвентарь заглушка */
+        .inv-placeholder { text-align: center; opacity: 0.6; }
+        /* Стили навыков */
+        .skill-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+        .skill-slot {
+            height: 64px; border-radius: 8px; display:flex; align-items:center; justify-content:center; position:relative;
+            background: rgba(255,255,255,0.03); border:1px dashed rgba(0,229,255,0.2); color:#00e5ff; cursor:pointer;
+        }
+        .skill-slot img.skill-icon {
+            width: 100%; height: 100%; object-fit: cover; border-radius: 8px;
+        }
+        .skill-slot .symbol { font-weight:bold; }
+        .skill-slot.empty::after { content: '+'; font-size:20px; color:rgba(0,229,255,0.5); }
+        .skill-slot.filled { background: linear-gradient(90deg, rgba(0,229,255,0.12), rgba(0,229,255,0.06)); border:1px solid #00e5ff; }
+        .skill-gear { position:absolute; top:4px; right:6px; font-size:12px; opacity:0.9; }
+        .btn.small { padding: 6px 10px; font-size: 12px; }
+        .media-preview {
+            position: relative;
+            width: 100%;
+            min-height: 180px;
+            border: 1px solid rgba(0,229,255,0.25);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 12px 0;
+            background: rgba(0,0,0,0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .media-preview img, .media-preview video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .media-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+        .media-menu { position: relative; }
+        .media-menu-panel {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 180px;
+            background: rgba(10, 20, 40, 0.95);
+            border: 1px solid #00e5ff;
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 8px;
+            z-index: 10;
+            display: none;
+        }
+        .media-menu-panel button { width: 100%; justify-content: flex-start; }
+        .inventory-category { font-size: 12px; color: #88aacc; margin-bottom: 6px; }
+        .accordion {
+            margin-bottom: 8px;
+            border: 1px solid rgba(0,229,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .accordion-header {
+            padding: 14px 16px;
+            background: rgba(0,229,255,0.08);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            color: #aad4f0;
+            transition: 0.2s;
+        }
+        .accordion-header:hover {
+            background: rgba(0,229,255,0.15);
+        }
+        .accordion-header .arrow {
+            transition: transform 0.3s ease;
+        }
+        .accordion-header.active .arrow {
+            transform: rotate(180deg);
+        }
+        .accordion-body {
+            padding: 16px;
+            display: none;
+            background: rgba(0,0,0,0.15);
+        }
+        .accordion-body.open {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <aside id="sidebar" style="width:170px; margin-right:12px;">
+            <div class="panel" style="padding:14px; display:flex; flex-direction:column; gap:14px;">
+                <div id="avatarCard" class="avatar-card" style="cursor:pointer;">
+                    <div class="avatar-frame"><img id="avatarImage" src="" alt="Avatar"></div>
+                    <div class="avatar-info">
+                        <div id="avatarName" class="avatar-name">Кирито</div>
+                        <div id="avatarLevelText" class="avatar-level">Уровень 1</div>
+                    </div>
+                </div>
+                <div id="charDropdown" class="panel char-dropdown" style="display:none; padding:10px; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong>Персонажи</strong>
+                        <button class="btn small" id="addCharBtn" title="Добавить персонажа">+</button>
+                    </div>
+                    <div id="charList" class="char-list" style="display:flex; flex-direction:column; gap:10px; max-height:calc(60vh - 80px); overflow:auto;"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Персонаж -->
+        <div id="character" class="tab-content active panel">
+            <h2 style="text-align:center;" id="charName">Кирито</h2>
+            <div id="mediaSection">
+                <div class="media-preview" id="charMediaPreview">
+                    <span style="color: rgba(192,240,255,0.6);">Портрет / фон персонажа</span>
+                </div>
+                <div class="media-controls">
+                    <div class="media-menu">
+                        <button class="btn" id="mediaMenuBtn">⋯</button>
+                        <div class="media-menu-panel" id="mediaMenuPanel">
+                            <button class="btn small" id="editPortraitBtn">Редактировать портрет</button>
+                            <button class="btn small" id="removePortraitBtn">Удалить портрет</button>
+                            <button class="btn small" id="editBackgroundBtn">Редактировать фон</button>
+                            <button class="btn small" id="removeBackgroundBtn">Удалить фон</button>
+                            <button class="btn small" id="editVideoBtn">Редактировать видеоряд</button>
+                            <button class="btn small" id="editAudioBtn">Редактировать фон. звук</button>
+                            <button class="btn small" id="removeAudioBtn">Удалить музыку</button>
+                        </div>
+                    </div>
+                    <span id="mediaInfo" style="color:#aad4f0; font-size:12px;">Фон/портрет не установлен</span>
+                </div>
+                <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+                        <input type="checkbox" id="bgAudioToggle" checked style="cursor:pointer; width:16px; height:16px;">
+                        Музыка включена
+                    </label>
+                </div>
+            </div>
+            <div style="text-align:center; margin:5px 0; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;">
+                <div>Уровень <span id="charLevel">1</span></div>
+                <button class="btn" id="toggleStatEditBtn" style="padding:6px 10px; font-size:12px;">Edit stats</button>
+            </div>
+            <div id="statEditForm" style="display:none; margin-top:16px; border:1px solid rgba(0,229,255,0.25); padding:14px; border-radius:10px;">
+                <div style="display:grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap:10px;">
+                    <label style="font-size:13px; color:#aad4f0;">HP<br><input id="editHp" type="number" min="0" style="width:100%; margin-top:4px; padding:6px; border:1px solid #00e5ff; border-radius:6px; background:rgba(0,0,0,0.4); color:#fff;"></label>
+                    <label style="font-size:13px; color:#aad4f0;">Max HP<br><input id="editMaxHp" type="number" min="1" style="width:100%; margin-top:4px; padding:6px; border:1px solid #00e5ff; border-radius:6px; background:rgba(0,0,0,0.4); color:#fff;"></label>
+                    <label style="font-size:13px; color:#aad4f0;">MP<br><input id="editMp" type="number" min="0" style="width:100%; margin-top:4px; padding:6px; border:1px solid #00e5ff; border-radius:6px; background:rgba(0,0,0,0.4); color:#fff;"></label>
+                    <label style="font-size:13px; color:#aad4f0;">Max MP<br><input id="editMaxMp" type="number" min="1" style="width:100%; margin-top:4px; padding:6px; border:1px solid #00e5ff; border-radius:6px; background:rgba(0,0,0,0.4); color:#fff;"></label>
+                    <label style="font-size:13px; color:#aad4f0;">XP<br><input id="editXp" type="number" min="0" style="width:100%; margin-top:4px; padding:6px; border:1px solid #00e5ff; border-radius:6px; background:rgba(0,0,0,0.4); color:#fff;"></label>
+                    <label style="font-size:13px; color:#aad4f0;">Level<br><input id="editLevel" type="number" min="1" style="width:100%; margin-top:4px; padding:6px; border:1px solid #00e5ff; border-radius:6px; background:rgba(0,0,0,0.4); color:#fff;"></label>
+                    <label style="font-size:13px; color:#aad4f0;">XP to Next<br><input id="editXpToNext" type="number" min="1" style="width:100%; margin-top:4px; padding:6px; border:1px solid #00e5ff; border-radius:6px; background:rgba(0,0,0,0.4); color:#fff;"></label>
+                </div>
+                <button class="btn" id="saveStatsBtn" style="margin-top:12px;">Save Stats</button>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">HP</span>
+                <span class="stat-value"><span id="curHp">100</span>/<span id="maxHp">100</span></span>
+                <div class="bar-container"><div id="hpBar" class="bar-fill hp-bar" style="width:100%"></div></div>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">MP</span>
+                <span class="stat-value"><span id="curMp">50</span>/<span id="maxMp">50</span></span>
+                <div class="bar-container"><div id="mpBar" class="bar-fill mp-bar" style="width:100%"></div></div>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">XP</span>
+                <span class="stat-value"><span id="curXp">0</span>/<span id="xpToNext">100</span></span>
+                <div class="bar-container"><div id="xpBar" class="bar-fill xp-bar" style="width:0%"></div></div>
+            </div>
+            <h3 style="margin-top:18px;">Active Skills</h3>
+            <div id="activeSkillsGrid" class="skill-grid">
+                <div class="skill-slot empty" title="Active Skill Slot"></div>
+                <div class="skill-slot empty" title="Active Skill Slot"></div>
+                <div class="skill-slot empty" title="Active Skill Slot"></div>
+            </div>
+            <h3 style="margin-top:18px;">Passive Skills</h3>
+            <div id="passiveSkillsGrid" class="skill-grid">
+                <div class="skill-slot empty" title="Passive Skill Slot"></div>
+                <div class="skill-slot empty" title="Passive Skill Slot"></div>
+                <div class="skill-slot empty" title="Passive Skill Slot"></div>
+            </div>
+        </div>
+
+        <!-- Квесты -->
+        <div id="quests" class="tab-content panel">
+            <h3>Активные квесты</h3>
+            <div id="activeQuestsList"></div>
+            <h3 style="margin-top:20px;">Ежедневные квесты</h3>
+            <div id="dailyQuestsList"></div>
+            <div class="add-quest-form panel" style="margin-top:20px;">
+                <h4>Добавить ежедневный квест</h4>
+                <input type="text" id="dailyQuestTitle" placeholder="Название">
+                <textarea id="dailyQuestDesc" placeholder="Описание"></textarea>
+                <button class="btn" id="addDailyQuestBtn">Создать ежедневный квест</button>
+            </div>
+            <h3 style="margin-top:20px;">Сгоревшие квесты</h3>
+            <div id="burnedQuestsList" style="opacity:0.9;"></div>
+            <h3 style="margin-top:20px;">Выполненные</h3>
+            <div id="completedQuestsList" style="opacity:0.7;"></div>
+            <div class="add-quest-form panel" style="margin-top:20px;">
+                <h4>Добавить квест</h4>
+                <input type="text" id="questTitle" placeholder="Название">
+                <textarea id="questDesc" placeholder="Описание"></textarea>
+                <input type="text" id="questItem" placeholder="Награда (предмет, необязательно)">
+                <input type="number" id="questXp" placeholder="Награда XP" value="50" min="0" max="10000">
+                <button class="btn" id="addQuestBtn">Создать</button>
+            </div>
+        </div>
+
+        <!-- Настройки -->
+        <div id="settings" class="tab-content panel">
+            <h2 style="text-align:center; margin-bottom:16px;">Настройки</h2>
+
+            <div class="accordion">
+                <div class="accordion-header" data-target="settingsChar">
+                    <span>👤 Персонаж</span>
+                    <span class="arrow">▼</span>
+                </div>
+                <div class="accordion-body" id="settingsChar">
+                    <div id="charSettingsPanel"></div>
+                </div>
+            </div>
+
+            <div class="accordion">
+                <div class="accordion-header" data-target="settingsCustom">
+                    <span>🎨 Кастомизация</span>
+                    <span class="arrow">▼</span>
+                </div>
+                <div class="accordion-body" id="settingsCustom">
+                    <div id="customizationSettingsPanel"></div>
+                </div>
+            </div>
+
+            <div class="accordion">
+                <div class="accordion-header" data-target="settingsCategories">
+                    <span>📦 Категории инвентаря</span>
+                    <span class="arrow">▼</span>
+                </div>
+                <div class="accordion-body" id="settingsCategories">
+                    <div id="categorySettingsPanel"></div>
+                </div>
+            </div>
+
+            <div class="accordion">
+                <div class="accordion-header" data-target="settingsSounds">
+                    <span>🔊 Звуковые эффекты</span>
+                    <span class="arrow">▼</span>
+                </div>
+                <div class="accordion-body" id="settingsSounds">
+                    <div id="soundSettingsPanel">
+                        <div class="quest-card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <span>Клик (нажатие кнопки)</span>
+                                <div>
+                                    <button class="btn small" id="soundClickUpload">Загрузить</button>
+                                    <button class="btn small" id="soundClickClear">Сбросить</button>
+                                    <input type="file" id="soundClickInput" accept="audio/*" style="display:none">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="quest-card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <span>Уровень (повышение)</span>
+                                <div>
+                                    <button class="btn small" id="soundLevelUpload">Загрузить</button>
+                                    <button class="btn small" id="soundLevelClear">Сбросить</button>
+                                    <input type="file" id="soundLevelInput" accept="audio/*" style="display:none">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="quest-card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <span>Использование предмета</span>
+                                <div>
+                                    <button class="btn small" id="soundItemUpload">Загрузить</button>
+                                    <button class="btn small" id="soundItemClear">Сбросить</button>
+                                    <input type="file" id="soundItemInput" accept="audio/*" style="display:none">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="quest-card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <span>Экипировка</span>
+                                <div>
+                                    <button class="btn small" id="soundEquipUpload">Загрузить</button>
+                                    <button class="btn small" id="soundEquipClear">Сбросить</button>
+                                    <input type="file" id="soundEquipInput" accept="audio/*" style="display:none">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion">
+                <div class="accordion-header" data-target="settingsSync">
+                    <span>🔄 Синхронизация</span>
+                    <span class="arrow">▼</span>
+                </div>
+                <div class="accordion-body open" id="settingsSync">
+                    <div id="syncSettingsPanel">
+                        <button class="btn" id="syncDataBtn">Экспортировать синхронизацию</button>
+                        <button class="btn" id="syncImportBtn" style="margin-top:8px;">Импортировать синхронизацию</button>
+                        <input type="file" id="syncFileInput" accept=".json" style="display:none;">
+                        <p style="margin-top:10px; font-size:12px; color:#88aacc;" id="syncStatus"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Инвентарь -->
+        <div id="inventory" class="tab-content panel">
+            <h3>Инвентарь</h3>
+            <div id="inventoryList"></div>
+            <div class="add-item-form" style="margin-top:12px; display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:start;">
+                <input type="text" id="newItemName" placeholder="Добавить предмет">
+                <select id="newItemCategory" style="padding:8px; border:1px solid #00e5ff; border-radius:6px; background:rgba(0,0,0,0.4); color:#fff; font-family:'Orbitron';">
+                    <option value="consumable">Расходник</option>
+                    <option value="equipment">Экипировка</option>
+                    <option value="quest">Квестовые предметы</option>
+                    <option value="crafting">Материалы</option>
+                    <option value="special">Особые предметы</option>
+                </select>
+                <button class="btn" id="addItemBtn" style="grid-column: span 2;">Добавить</button>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn" id="exportBtn">Экспорт данных</button>
+                <button class="btn" id="importBtn">Импорт данных</button>
+                <button class="btn" id="clearBtn">Очистить всё</button>
+                <input type="file" id="importFile" accept="application/json" style="display:none">
+            </div>
+            <div id="backupsSection" style="margin-top:18px;">
+                <h3>Резервные копии</h3>
+                <div id="backupsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <button class="nav-btn active" data-tab="character"><span class="nav-icon">🛡️</span><span>Персонаж</span></button>
+        <button class="nav-btn" data-tab="quests"><span class="nav-icon">📜</span><span>Квесты</span></button>
+        <button class="nav-btn" data-tab="inventory"><span class="nav-icon">🎒</span><span>Инвентарь</span></button>
+        <button class="nav-btn" data-tab="settings"><span class="nav-icon">⚙️</span><span>Настройки</span></button>
+    </div>
+
+    <canvas id="fireworks"></canvas>
+    <audio id="bgAudio" loop preload="auto" style="display:none"></audio>
+    <input type="file" id="mediaFileInput" accept="image/*,video/*" style="display:none">
+    <input type="file" id="skillIconFileInput" accept="image/*" style="display:none">
+    <input type="file" id="categorySoundInput" accept="audio/*" style="display:none">
+    <input type="file" id="audioFileInput" accept="audio/*" style="display:none">
+    <div id="cropModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1000; align-items:center; justify-content:center;">
+        <div style="position:relative; background:#09121f; border:1px solid #00e5ff; padding:14px; border-radius:12px; width:min(95vw,700px); max-height:90vh; overflow:auto;">
+            <h3 style="margin-top:0;">Обрезка изображения</h3>
+            <canvas id="cropCanvas" style="width:100%; height:auto; border:1px solid #00e5ff; border-radius:10px; background:#071018;"></canvas>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+                <button class="btn small" id="cropApplyBtn">Применить</button>
+                <button class="btn small" id="cropResetBtn">Сброс</button>
+                <button class="btn small" id="cropCancelBtn">Отмена</button>
+            </div>
+            <p id="cropInstructions" style="margin:10px 0 0; font-size:12px; color:#aad4f0;">Перетащите рамку, чтобы выбрать область.</p>
+        </div>
+    </div>
+
+    <script>
+        // Регистрация Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(() => {});
+            });
+        }
+
+        // --- Данные (мультиперсонажи) ---
+        const defaultPlayer = {
+            name: 'User',
+            hp: 100, maxHp: 100,
+            mp: 50, maxMp: 50,
+            xp: 0, level: 1,
+            xpToNext: 100,
+            activeQuests: [],
+            completedQuests: [],
+            inventory: [],
+            skills: { active: [], passive: [] },
+            dailyQuests: [],
+            burnedQuests: [],
+            portraitSrc: '',
+            backgroundSrc: '',
+            portraitType: 'image',
+            backgroundType: 'image',
+            bgAudioSrc: '',
+            bgAudioEnabled: true,
+            syncLocks: {
+                all: false,
+                portraitSrc: false, backgroundSrc: false, bgAudioSrc: false, bgAudioEnabled: false,
+                hp: false, maxHp: false, mp: false, maxMp: false, xp: false, level: false
+            },
+            categorySettings: {
+                consumable: { name: 'Расходник', soundSrc: '', syncLocked: false },
+                equipment: { name: 'Экипировка', soundSrc: '', syncLocked: false },
+                quest: { name: 'Квестовые предметы', soundSrc: '', syncLocked: false },
+                crafting: { name: 'Материалы', soundSrc: '', syncLocked: false },
+                special: { name: 'Особые предметы', soundSrc: '', syncLocked: false }
+            },
+            customSounds: {
+                click: null,
+                level: null,
+                item: null,
+                equip: null
+            }
+        };
+
+        let characters = JSON.parse(localStorage.getItem('sao_characters')) || null;
+        let activeCharIndex = parseInt(localStorage.getItem('sao_activeCharIndex'), 10) || 0;
+        let backups = JSON.parse(localStorage.getItem('sao_backups')) || [];
+        let mediaTarget = null;
+        let audioContext = null;
+        let syncData = JSON.parse(localStorage.getItem('sao_syncData')) || {};
+        let categorySoundTarget = null;
+        let pendingSkillEdit = null;
+        let cropImage = null;
+        let cropCallback = null;
+        let cropRect = null;
+        let isDraggingCrop = false;
+        let dragOffset = { x: 0, y: 0 };
+
+        function saveBackups() {
+            localStorage.setItem('sao_backups', JSON.stringify(backups));
+        }
+
+        function saveSyncData() {
+            localStorage.setItem('sao_syncData', JSON.stringify(syncData));
+        }
+
+        function openCropEditor(file, callback) {
+            cropCallback = callback;
+            const modal = document.getElementById('cropModal');
+            const canvas = document.getElementById('cropCanvas');
+            cropImage = new Image();
+            cropImage.onload = () => {
+                const maxWidth = 800;
+                const maxHeight = 500;
+                const scale = Math.min(maxWidth / cropImage.width, maxHeight / cropImage.height, 1);
+                canvas.width = Math.round(cropImage.width * scale);
+                canvas.height = Math.round(cropImage.height * scale);
+                cropRect = {
+                    x: Math.round(canvas.width * 0.1),
+                    y: Math.round(canvas.height * 0.1),
+                    width: Math.round(canvas.width * 0.8),
+                    height: Math.round(canvas.height * 0.8)
+                };
+                drawCropCanvas();
+                modal.style.display = 'flex';
+            };
+            cropImage.src = URL.createObjectURL(file);
+        }
+
+        function closeCropModal() {
+            document.getElementById('cropModal').style.display = 'none';
+            cropImage = null;
+            cropCallback = null;
+            cropRect = null;
+            isDraggingCrop = false;
+            dragOffset = { x: 0, y: 0 };
+        }
+
+        function drawCropCanvas() {
+            const canvas = document.getElementById('cropCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(cropImage, 0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            // overlay outside crop rectangle
+            ctx.fillRect(0, 0, canvas.width, cropRect.y);
+            ctx.fillRect(0, cropRect.y, cropRect.x, cropRect.height);
+            ctx.fillRect(cropRect.x + cropRect.width, cropRect.y, canvas.width - cropRect.x - cropRect.width, cropRect.height);
+            ctx.fillRect(0, cropRect.y + cropRect.height, canvas.width, canvas.height - cropRect.y - cropRect.height);
+            ctx.strokeStyle = '#00e5ff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(cropRect.x, cropRect.y, cropRect.width, cropRect.height);
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(Math.max(value, min), max);
+        }
+
+        document.getElementById('cropCanvas').addEventListener('pointerdown', (e) => {
+            if (!cropRect) return;
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            if (x >= cropRect.x && x <= cropRect.x + cropRect.width && y >= cropRect.y && y <= cropRect.y + cropRect.height) {
+                isDraggingCrop = true;
+                dragOffset.x = x - cropRect.x;
+                dragOffset.y = y - cropRect.y;
+            }
+        });
+
+        document.getElementById('cropCanvas').addEventListener('pointermove', (e) => {
+            if (!isDraggingCrop || !cropRect) return;
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            cropRect.x = clamp(x - dragOffset.x, 0, e.target.width - cropRect.width);
+            cropRect.y = clamp(y - dragOffset.y, 0, e.target.height - cropRect.height);
+            drawCropCanvas();
+        });
+
+        document.getElementById('cropCanvas').addEventListener('pointerup', () => {
+            isDraggingCrop = false;
+        });
+
+        document.getElementById('cropCanvas').addEventListener('pointerleave', () => {
+            isDraggingCrop = false;
+        });
+
+        document.getElementById('cropApplyBtn').addEventListener('click', () => {
+            if (!cropRect || !cropImage || !cropCallback) return;
+            const canvas = document.createElement('canvas');
+            const scale = cropImage.width / document.getElementById('cropCanvas').width;
+            canvas.width = Math.round(cropRect.width * scale);
+            canvas.height = Math.round(cropRect.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(
+                cropImage,
+                cropRect.x * scale,
+                cropRect.y * scale,
+                cropRect.width * scale,
+                cropRect.height * scale,
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
+            const dataUrl = canvas.toDataURL('image/png');
+            cropCallback(dataUrl);
+            closeCropModal();
+        });
+
+        document.getElementById('cropResetBtn').addEventListener('click', () => {
+            if (!cropImage) return;
+            cropRect = {
+                x: Math.round(document.getElementById('cropCanvas').width * 0.1),
+                y: Math.round(document.getElementById('cropCanvas').height * 0.1),
+                width: Math.round(document.getElementById('cropCanvas').width * 0.8),
+                height: Math.round(document.getElementById('cropCanvas').height * 0.8)
+            };
+            drawCropCanvas();
+        });
+
+        document.getElementById('cropCancelBtn').addEventListener('click', () => {
+            closeCropModal();
+        });
+
+        function playCategorySound(category) {
+            const soundSrc = player.categorySettings?.[category]?.soundSrc;
+            if (!soundSrc) return false;
+            const audio = new Audio(soundSrc);
+            audio.volume = 0.5;
+            audio.play().catch(() => {});
+            return true;
+        }
+
+        function syncCharacterData() {
+            const cur = characters[activeCharIndex];
+            const locks = cur.syncLocks || {};
+            // Если включена блокировка всего персонажа – не экспортируем ничего
+            if (locks.all === true) {
+                return false;
+            }
+            if (!syncData.syncId) syncData.syncId = `sync_${Date.now()}`;
+            const syncPayload = {};
+            const unlockedFields = Object.keys(locks).filter(key => !locks[key]);
+            unlockedFields.forEach(field => {
+                if (cur.hasOwnProperty(field)) {
+                    syncPayload[field] = cur[field];
+                }
+            });
+            if (Object.keys(syncPayload).length > 0) {
+                syncData.lastSync = new Date().toISOString();
+                syncData.payload = syncPayload;
+                saveSyncData();
+                return true;
+            }
+            return false;
+        }
+
+        function applySyncData() {
+            if (!syncData.payload) return;
+            const cur = characters[activeCharIndex];
+            const locks = cur.syncLocks || {};
+            // Если включена блокировка всего персонажа – не применяем импорт
+            if (locks.all === true) {
+                return;
+            }
+            Object.keys(syncData.payload).forEach(key => {
+                if (!locks[key]) {
+                    cur[key] = syncData.payload[key];
+                }
+            });
+            loadCurrentCharacter();
+        }
+
+        function initAudioContext() {
+            if (audioContext) return audioContext;
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            return audioContext;
+        }
+
+        function playSoundEffect(type = 'click') {
+            const ac = initAudioContext();
+            if (!ac) return;
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain);
+            gain.connect(ac.destination);
+            const now = ac.currentTime;
+            let frequency = 440;
+            let duration = 0.12;
+            switch (type) {
+                case 'key': frequency = 320; duration = 0.07; break;
+                case 'level': frequency = 760; duration = 0.22; break;
+                case 'item': frequency = 240; duration = 0.16; break;
+                case 'equip': frequency = 520; duration = 0.14; break;
+                case 'click': frequency = 400; duration = 0.08; break;
+            }
+            osc.frequency.setValueAtTime(frequency, now);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.start(now);
+            osc.stop(now + duration + 0.02);
+        }
+
+        function toggleMediaMenu() {
+            const panel = document.getElementById('mediaMenuPanel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function updateMediaInfo() {
+            const info = [];
+            if (player.portraitSrc) info.push('Портрет установлен');
+            if (player.backgroundSrc) info.push('Фон установлен');
+            if (player.bgAudioSrc) info.push('Звук фона установлен');
+            document.getElementById('mediaInfo').textContent = info.length ? info.join(' • ') : 'Фон/портрет не установлен';
+        }
+
+        function updateBackgroundAudio() {
+            const audio = document.getElementById('bgAudio');
+            const toggle = document.getElementById('bgAudioToggle');
+            if (player.bgAudioSrc && toggle && toggle.checked) {
+                audio.src = player.bgAudioSrc;
+                audio.volume = 0.25;
+                audio.loop = true;
+                const playPromise = audio.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => {});
+                }
+            } else {
+                audio.pause();
+                audio.removeAttribute('src');
+            }
+        }
+
+        function renderCharacterMedia() {
+            const preview = document.getElementById('charMediaPreview');
+            preview.innerHTML = '';
+            let shown = false;
+            if (player.portraitSrc) {
+                if (player.portraitType === 'video') {
+                    const video = document.createElement('video');
+                    video.src = player.portraitSrc;
+                    video.autoplay = true;
+                    video.loop = true;
+                    video.muted = true;
+                    video.playsInline = true;
+                    preview.appendChild(video);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = player.portraitSrc;
+                    img.alt = 'Portrait';
+                    preview.appendChild(img);
+                }
+                shown = true;
+            }
+            if (player.backgroundSrc && player.backgroundType === 'image') {
+                document.body.style.backgroundImage = `url('${player.backgroundSrc}')`;
+                document.body.style.backgroundSize = 'cover';
+                document.body.style.backgroundPosition = 'center';
+                document.body.style.backgroundRepeat = 'no-repeat';
+            } else if (player.backgroundSrc && player.backgroundType === 'video') {
+                document.body.style.backgroundImage = 'none';
+            } else if (!player.backgroundSrc) {
+                document.body.style.backgroundImage = 'none';
+            }
+            if (!shown && player.backgroundSrc) {
+                if (player.backgroundType === 'video') {
+                    const video = document.createElement('video');
+                    video.src = player.backgroundSrc;
+                    video.autoplay = true;
+                    video.loop = true;
+                    video.muted = true;
+                    video.playsInline = true;
+                    preview.appendChild(video);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = player.backgroundSrc;
+                    img.alt = 'Background';
+                    preview.appendChild(img);
+                }
+                shown = true;
+            }
+            if (!shown) {
+                preview.innerHTML = '<span style="color: rgba(192,240,255,0.6);">Портрет / фон персонажа</span>';
+            }
+            updateMediaInfo();
+        }
+
+        function applyCharacterMedia(target, dataUrl, isVideo) {
+            const cur = characters[activeCharIndex];
+            if (target === 'portrait') {
+                player.portraitSrc = dataUrl;
+                player.portraitType = isVideo ? 'video' : 'image';
+                cur.portraitSrc = player.portraitSrc;
+                cur.portraitType = player.portraitType;
+            } else if (target === 'background') {
+                player.backgroundSrc = dataUrl;
+                player.backgroundType = isVideo ? 'video' : 'image';
+                cur.backgroundSrc = player.backgroundSrc;
+                cur.backgroundType = player.backgroundType;
+            }
+            saveAll();
+            renderCharacterMedia();
+        }
+
+        function setCharacterMedia(target, file) {
+            if (!file) return;
+            const isVideo = file.type.startsWith('video/');
+            if (file.type.startsWith('image/')) {
+                openCropEditor(file, (dataUrl) => applyCharacterMedia(target, dataUrl, false));
+            } else {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    applyCharacterMedia(target, reader.result, isVideo);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function setBackgroundAudio(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const dataUrl = reader.result;
+                const cur = characters[activeCharIndex];
+                player.bgAudioSrc = dataUrl;
+                cur.bgAudioSrc = player.bgAudioSrc;
+                saveAll();
+                updateBackgroundAudio();
+                updateMediaInfo();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Миграция старых данных если нет characters
+        if (!characters) {
+            const singlePlayer = JSON.parse(localStorage.getItem('sao_player')) || null;
+            if (singlePlayer) {
+                const chr = {...defaultPlayer, ...singlePlayer};
+                characters = [chr];
+            } else {
+                characters = [{...defaultPlayer}];
+            }
+        }
+
+        function saveAll() {
+            // перед сохранением синхронизируем текущие глобальные переменные в текущем персонаже
+            const cur = characters[activeCharIndex];
+            cur.activeQuests = activeQuests;
+            cur.completedQuests = completedQuests;
+            inventory = normalizeInventory(inventory);
+            cur.inventory = inventory;
+            cur.skills = player.skills || cur.skills;
+            cur.dailyQuests = cur.dailyQuests || [];
+            cur.burnedQuests = cur.burnedQuests || [];
+            cur.portraitSrc = player.portraitSrc;
+            cur.portraitType = player.portraitType;
+            cur.backgroundSrc = player.backgroundSrc;
+            cur.backgroundType = player.backgroundType;
+            cur.bgAudioSrc = player.bgAudioSrc;
+            cur.bgAudioEnabled = player.bgAudioEnabled;
+            cur.syncLocks = player.syncLocks;
+            cur.categorySettings = player.categorySettings;
+            cur.customSounds = player.customSounds || { click: null, level: null, item: null, equip: null };
+            cur.name = player.name;
+            cur.hp = player.hp; cur.maxHp = player.maxHp;
+            cur.mp = player.mp; cur.maxMp = player.maxMp;
+            cur.xp = player.xp; cur.level = player.level; cur.xpToNext = player.xpToNext;
+            localStorage.setItem('sao_characters', JSON.stringify(characters));
+            localStorage.setItem('sao_activeCharIndex', String(activeCharIndex));
+        }
+
+        function getBackupLabel(backup) {
+            return `${backup.name || 'Резервная копия'} — ${new Date(backup.timestamp).toLocaleString()}`;
+        }
+
+        function renderBackupsUI() {
+            const list = document.getElementById('backupsList');
+            list.innerHTML = '';
+            if (!Array.isArray(backups) || !backups.length) {
+                list.innerHTML = '<p class="inv-placeholder">Нет сохранённых резервных копий.</p>';
+                return;
+            }
+            backups.slice().reverse().forEach((backup) => {
+                const card = document.createElement('div');
+                card.className = 'quest-card';
+                card.style.display = 'flex';
+                card.style.flexDirection = 'column';
+                card.style.gap = '8px';
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="font-size:14px; color:#aad4f0;">${getBackupLabel(backup)}</div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button class="btn restore-backup" data-id="${backup.id}">Restore</button>
+                            <button class="btn delete-backup" data-id="${backup.id}">Delete</button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+            document.querySelectorAll('.restore-backup').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    if (!id) return;
+                    restoreBackup(id);
+                });
+            });
+            document.querySelectorAll('.delete-backup').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    if (!id) return;
+                    deleteBackup(id);
+                });
+            });
+        }
+
+        function createBackupRecord() {
+            const newBackup = {
+                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                name: `Backup ${player.name}`,
+                timestamp: new Date().toISOString(),
+                data: { characters }
+            };
+            backups.push(newBackup);
+            saveBackups();
+            renderBackupsUI();
+            return newBackup;
+        }
+
+        function restoreBackup(id) {
+            const backup = backups.find(b => b.id === id);
+            if (!backup) return alert('Резервная копия не найдена.');
+            if (!confirm(`Восстановить резервную копию:\n${backup.name}?`)) return;
+            const payload = backup.data || {};
+            if (Array.isArray(payload.characters)) {
+                characters = payload.characters.map(ch => ({ ...defaultPlayer, ...ch }));
+                activeCharIndex = 0;
+                saveAll();
+                loadCurrentCharacter();
+                renderCharList();
+                updateCharacterUI();
+                updateQuestsUI();
+                updateInventoryUI();
+                alert('Резервная копия восстановлена: все персонажи.');
+                return;
+            }
+            const charData = payload.player ? payload.player : payload;
+            player = { ...defaultPlayer, ...player, ...charData };
+            if (Array.isArray(payload.activeQuests)) activeQuests = payload.activeQuests;
+            if (Array.isArray(payload.completedQuests)) completedQuests = payload.completedQuests;
+            if (Array.isArray(payload.inventory)) inventory = normalizeInventory(payload.inventory);
+            if (Array.isArray(payload.dailyQuests)) player.dailyQuests = payload.dailyQuests;
+            if (Array.isArray(payload.burnedQuests)) player.burnedQuests = payload.burnedQuests;
+            saveAll();
+            updateCharacterUI();
+            updateQuestsUI();
+            updateInventoryUI();
+            alert('Резервная копия восстановлена в текущего персонажа.');
+        }
+
+        function deleteBackup(id) {
+            const index = backups.findIndex(b => b.id === id);
+            if (index === -1) return;
+            if (!confirm('Удалить резервную копию?')) return;
+            backups.splice(index, 1);
+            saveBackups();
+            renderBackupsUI();
+        }
+
+        function normalizeInventory(items) {
+            return (items || []).map(item => {
+                if (typeof item === 'string') {
+                    return { name: item, type: 'equipment', equipped: false, modifiers: { hp: 0, mp: 0 } };
+                }
+                if (!item || typeof item !== 'object') {
+                    return { name: '', type: 'equipment', equipped: false, modifiers: { hp: 0, mp: 0 } };
+                }
+                const validTypes = ['consumable', 'equipment', 'quest', 'crafting', 'special'];
+                return {
+                    name: String(item.name || ''),
+                    type: validTypes.includes(item.type) ? item.type : 'equipment',
+                    equipped: Boolean(item.equipped),
+                    modifiers: {
+                        hp: Number((item.modifiers && item.modifiers.hp) || 0),
+                        mp: Number((item.modifiers && item.modifiers.mp) || 0)
+                    }
+                };
+            });
+        }
+
+        function normalizeSkill(skill) {
+            if (!skill || typeof skill !== 'object' || !skill.name) return null;
+            return {
+                name: String(skill.name),
+                description: String(skill.description || ''),
+                gear: String(skill.gear || '')
+            };
+        }
+
+        function normalizeSkills(skills) {
+            const active = Array.from({ length: 3 }, (_, idx) => normalizeSkill(skills?.active?.[idx]));
+            const passive = Array.from({ length: 3 }, (_, idx) => normalizeSkill(skills?.passive?.[idx]));
+            return { active, passive };
+        }
+
+        function loadCurrentCharacter() {
+            const cur = characters[activeCharIndex];
+            player = { ...defaultPlayer, ...cur };
+            activeQuests = Array.isArray(cur.activeQuests) ? cur.activeQuests : [];
+            completedQuests = Array.isArray(cur.completedQuests) ? cur.completedQuests : [];
+            inventory = normalizeInventory(cur.inventory);
+            player.skills = normalizeSkills(cur.skills || player.skills);
+            player.syncLocks = cur.syncLocks || {};
+            player.categorySettings = cur.categorySettings || defaultPlayer.categorySettings;
+            player.bgAudioEnabled = cur.bgAudioEnabled !== undefined ? cur.bgAudioEnabled : true;
+            const toggle = document.getElementById('bgAudioToggle');
+            if (toggle) toggle.checked = player.bgAudioEnabled;
+        }
+
+        function renderCharList() {
+            const list = document.getElementById('charList');
+            list.innerHTML = '';
+            characters.forEach((c, idx) => {
+                const el = document.createElement('div');
+                el.style.display = 'flex';
+                el.style.alignItems = 'center';
+                el.style.justifyContent = 'space-between';
+                el.style.gap = '6px';
+                el.innerHTML = `<button class="btn char-switch" data-idx="${idx}">${c.name}</button><button class="btn small edit-char" data-idx="${idx}">✎</button>`;
+                if (idx === activeCharIndex) el.style.boxShadow = '0 0 10px #00e5ff';
+                list.appendChild(el);
+            });
+            document.querySelectorAll('.char-switch').forEach(b => b.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.dataset.idx, 10);
+                if (idx === activeCharIndex) return;
+                // save current
+                saveAll();
+                activeCharIndex = idx;
+                loadCurrentCharacter();
+                updateCharacterUI();
+                updateQuestsUI();
+                updateInventoryUI();
+                renderSettingsUI();
+                renderCharList();
+            }));
+            document.querySelectorAll('.edit-char').forEach(b => b.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.dataset.idx, 10);
+                const name = prompt('Редактировать имя персонажа:', characters[idx].name);
+                if (name) { characters[idx].name = name; saveAll(); renderCharList(); if (idx===activeCharIndex) updateCharacterUI(); }
+            }));
+        }
+
+        document.getElementById('addCharBtn').addEventListener('click', () => {
+            const name = prompt('Имя нового персонажа:','Новый герой');
+            if (!name) return;
+            const newChar = {...defaultPlayer, name};
+            characters.push(newChar);
+            activeCharIndex = characters.length - 1;
+            saveAll();
+            loadCurrentCharacter();
+            renderCharList();
+            renderSettingsUI();
+            updateCharacterUI();
+            updateQuestsUI();
+            updateInventoryUI();
+        });
+
+        // Инициализация персонажа
+        loadCurrentCharacter();
+        renderCharList();
+        renderBackupsUI();
+        renderSettingsUI();
+
+        document.body.addEventListener('click', (event) => {
+            const button = event.target.closest('.btn');
+            if (button) {
+                playSoundEffect('click');
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ' || e.key.length === 1) {
+                playSoundEffect('key');
+            }
+        });
+        document.getElementById('mediaMenuBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMediaMenu();
+        });
+        window.addEventListener('click', () => {
+            document.getElementById('mediaMenuPanel').style.display = 'none';
+        });
+        document.getElementById('bgAudioToggle').addEventListener('change', (e) => {
+            player.bgAudioEnabled = e.target.checked;
+            saveAll();
+            updateBackgroundAudio();
+            playSoundEffect('click');
+        });
+        document.getElementById('editPortraitBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            mediaTarget = 'portrait';
+            document.getElementById('mediaFileInput').click();
+        });
+        document.getElementById('removePortraitBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            player.portraitSrc = '';
+            player.portraitType = 'image';
+            const cur = characters[activeCharIndex];
+            cur.portraitSrc = '';
+            cur.portraitType = 'image';
+            saveAll();
+            renderCharacterMedia();
+        });
+        document.getElementById('editBackgroundBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            mediaTarget = 'background';
+            document.getElementById('mediaFileInput').click();
+        });
+        document.getElementById('removeBackgroundBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            player.backgroundSrc = '';
+            player.backgroundType = 'image';
+            const cur = characters[activeCharIndex];
+            cur.backgroundSrc = '';
+            cur.backgroundType = 'image';
+            saveAll();
+            renderCharacterMedia();
+        });
+        document.getElementById('editVideoBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            mediaTarget = 'background';
+            document.getElementById('mediaFileInput').click();
+        });
+        document.getElementById('editAudioBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('audioFileInput').click();
+        });
+        document.getElementById('removeAudioBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            player.bgAudioSrc = '';
+            const cur = characters[activeCharIndex];
+            cur.bgAudioSrc = '';
+            saveAll();
+            updateBackgroundAudio();
+            updateMediaInfo();
+        });
+        document.getElementById('mediaFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            setCharacterMedia(mediaTarget, file);
+            e.target.value = '';
+        });
+        document.getElementById('skillIconFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file || !pendingSkillEdit) return;
+            if (file.type.startsWith('image/')) {
+                openCropEditor(file, (dataUrl) => {
+                    const slotList = player.skills[pendingSkillEdit.slotType];
+                    const skill = slotList[pendingSkillEdit.index] || {};
+                    skill.iconSrc = dataUrl;
+                    slotList[pendingSkillEdit.index] = skill;
+                    saveAll();
+                    renderSkills();
+                    pendingSkillEdit = null;
+                });
+            }
+            e.target.value = '';
+        });
+        document.getElementById('categorySoundInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file || !categorySoundTarget) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                player.categorySettings[categorySoundTarget].soundSrc = reader.result;
+                saveAll();
+                renderSettingsUI();
+                categorySoundTarget = null;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        });
+        document.getElementById('audioFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            setBackgroundAudio(file);
+            e.target.value = '';
+        });
+
+        document.getElementById('toggleStatEditBtn').addEventListener('click', () => {
+            const form = document.getElementById('statEditForm');
+            const isHidden = form.style.display === 'none';
+            if (isHidden) {
+                populateStatEditorFields();
+                form.style.display = 'block';
+            } else {
+                form.style.display = 'none';
+            }
+        });
+
+        document.getElementById('saveStatsBtn').addEventListener('click', () => {
+            const hp = parseInt(document.getElementById('editHp').value, 10);
+            const maxHp = parseInt(document.getElementById('editMaxHp').value, 10);
+            const mp = parseInt(document.getElementById('editMp').value, 10);
+            const maxMp = parseInt(document.getElementById('editMaxMp').value, 10);
+            const xp = parseInt(document.getElementById('editXp').value, 10);
+            const level = parseInt(document.getElementById('editLevel').value, 10);
+            const xpToNext = parseInt(document.getElementById('editXpToNext').value, 10);
+            if ([hp, maxHp, mp, maxMp, xp, level, xpToNext].some(v => Number.isNaN(v))) {
+                return alert('Пожалуйста, заполните все поля корректными числами.');
+            }
+            player.hp = Math.max(0, hp);
+            player.maxHp = Math.max(1, maxHp);
+            player.mp = Math.max(0, mp);
+            player.maxMp = Math.max(1, maxMp);
+            player.xp = Math.max(0, xp);
+            player.level = Math.max(1, level);
+            player.xpToNext = Math.max(1, xpToNext);
+            saveAll();
+            updateCharacterUI();
+        });
+
+        function populateStatEditorFields() {
+            document.getElementById('editHp').value = player.hp;
+            document.getElementById('editMaxHp').value = player.maxHp;
+            document.getElementById('editMp').value = player.mp;
+            document.getElementById('editMaxMp').value = player.maxMp;
+            document.getElementById('editXp').value = player.xp;
+            document.getElementById('editLevel').value = player.level;
+            document.getElementById('editXpToNext').value = player.xpToNext;
+        }
+
+        // --- UI обновление ---
+        function computeEquippedModifiers() {
+            return inventory.reduce((acc, item) => {
+                if (!item || !item.equipped) return acc;
+                acc.hp += Number(item.modifiers?.hp || 0);
+                acc.mp += Number(item.modifiers?.mp || 0);
+                return acc;
+            }, { hp: 0, mp: 0 });
+        }
+
+        function updateCharacterUI() {
+            const mods = computeEquippedModifiers();
+            const effectiveMaxHp = Math.max(1, player.maxHp + mods.hp);
+            const effectiveMaxMp = Math.max(1, player.maxMp + mods.mp);
+            const effectiveHp = Math.min(Math.max(0, player.hp + mods.hp), effectiveMaxHp);
+            const effectiveMp = Math.min(Math.max(0, player.mp + mods.mp), effectiveMaxMp);
+
+            const avatarImg = document.getElementById('avatarImage');
+            if (player.portraitSrc) {
+                avatarImg.src = player.portraitSrc;
+            } else {
+                avatarImg.src = '';
+            }
+            document.getElementById('avatarName').textContent = player.name;
+            document.getElementById('avatarLevelText').textContent = `Уровень ${player.level}`;
+            document.getElementById('charName').textContent = player.name;
+            document.getElementById('charLevel').textContent = player.level;
+            document.getElementById('curHp').textContent = effectiveHp;
+            document.getElementById('maxHp').textContent = effectiveMaxHp;
+            document.getElementById('curMp').textContent = effectiveMp;
+            document.getElementById('maxMp').textContent = effectiveMaxMp;
+            document.getElementById('curXp').textContent = player.xp;
+            document.getElementById('xpToNext').textContent = player.xpToNext;
+
+            document.getElementById('hpBar').style.width = (effectiveHp / effectiveMaxHp * 100) + '%';
+            document.getElementById('mpBar').style.width = (effectiveMp / effectiveMaxMp * 100) + '%';
+            document.getElementById('xpBar').style.width = (player.xp / player.xpToNext * 100) + '%';
+
+            renderCharacterMedia();
+            updateBackgroundAudio();
+            renderSkills();
+        }
+
+        function renderSkills() {
+            const activeGrid = document.getElementById('activeSkillsGrid');
+            const passiveGrid = document.getElementById('passiveSkillsGrid');
+            activeGrid.innerHTML = '';
+            passiveGrid.innerHTML = '';
+
+            player.skills.active.forEach((skill, idx) => {
+                const slot = document.createElement('div');
+                slot.className = 'skill-slot ' + (skill ? 'filled' : 'empty');
+                slot.dataset.slotType = 'active';
+                slot.dataset.index = idx;
+                slot.title = skill ? `${skill.name}\n${skill.description || 'Нет описания'}` : 'Active Skill Slot';
+                if (skill) {
+                    const iconHtml = skill.iconSrc ? `<img class="skill-icon" src="${skill.iconSrc}" alt="${skill.name}">` : `<span class="symbol">${skill.name.slice(0, 2).toUpperCase()}</span>`;
+                    const gearLabel = skill.gear ? `<span class="skill-gear">${skill.gear}</span>` : '<span class="skill-gear">⚙️</span>';
+                    slot.innerHTML = `${iconHtml}${gearLabel}`;
+                }
+                slot.addEventListener('click', () => openSkillEditor('active', idx));
+                activeGrid.appendChild(slot);
+            });
+            player.skills.passive.forEach((skill, idx) => {
+                const slot = document.createElement('div');
+                slot.className = 'skill-slot ' + (skill ? 'filled' : 'empty');
+                slot.dataset.slotType = 'passive';
+                slot.dataset.index = idx;
+                slot.title = skill ? `${skill.name}\n${skill.description || 'Нет описания'}` : 'Passive Skill Slot';
+                if (skill) {
+                    const iconHtml = skill.iconSrc ? `<img class="skill-icon" src="${skill.iconSrc}" alt="${skill.name}">` : `<span class="symbol">${skill.name.slice(0, 2).toUpperCase()}</span>`;
+                    const gearLabel = skill.gear ? `<span class="skill-gear">${skill.gear}</span>` : '<span class="skill-gear">⚙️</span>';
+                    slot.innerHTML = `${iconHtml}${gearLabel}`;
+                }
+                slot.addEventListener('click', () => openSkillEditor('passive', idx));
+                passiveGrid.appendChild(slot);
+            });
+        }
+
+        function openSkillEditor(slotType, index) {
+            const skillList = player.skills[slotType];
+            const existing = skillList[index];
+            if (existing) {
+                const view = confirm(`Навык: ${existing.name}\n${existing.description || 'Нет описания'}\n\nOK — редактировать, Отмена — отмена.`);
+                if (!view) return;
+            }
+            const name = prompt('Название навыка:', existing?.name || '');
+            if (name === null) return;
+            if (!name.trim()) {
+                if (existing && confirm('Удалить навык?')) {
+                    skillList[index] = null;
+                    saveAll();
+                    renderSkills();
+                }
+                return;
+            }
+            const description = prompt('Описание навыка:', existing?.description || '') || '';
+            const gear = prompt('Иконка/метка навыка:', existing?.gear || '') || '';
+            const skill = { name: name.trim(), description: description.trim(), gear: gear.trim(), iconSrc: existing?.iconSrc || '' };
+            skillList[index] = skill;
+            saveAll();
+            renderSkills();
+            if (confirm('Добавить или изменить изображение навыка?')) {
+                pendingSkillEdit = { slotType, index };
+                document.getElementById('skillIconFileInput').click();
+            }
+        }
+
+        function getCurrentLocalDate() {
+            return new Date().toLocaleDateString('en-CA');
+        }
+
+        function renderDailyQuestsUI() {
+            const list = document.getElementById('dailyQuestsList');
+            list.innerHTML = '';
+            const daily = Array.isArray(player.dailyQuests) ? player.dailyQuests : [];
+            if (!daily.length) {
+                list.innerHTML = '<p class="inv-placeholder">Нет ежедневных квестов.</p>';
+                return;
+            }
+            daily.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.className = 'quest-card';
+                card.style.opacity = q.completed ? '0.7' : '1';
+                card.innerHTML = `
+                    <div class="quest-title">${q.completed ? '✅ ' : ''}${q.title}</div>
+                    <div class="quest-desc">${q.desc || ''}</div>
+                    <div class="quest-reward">Дата: ${q.date || 'не указано'}</div>
+                    <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                        <button class="btn daily-complete-btn" data-index="${index}">${q.completed ? 'Отметить как невыполненный' : 'Отметить как выполненный'}</button>
+                        <button class="btn daily-delete-btn" data-index="${index}">Удалить</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+            document.querySelectorAll('.daily-complete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    if (!Number.isFinite(index)) return;
+                    toggleDailyQuestCompleted(index);
+                });
+            });
+            document.querySelectorAll('.daily-delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    if (!Number.isFinite(index)) return;
+                    if (!confirm('Удалить ежедневный квест?')) return;
+                    player.dailyQuests.splice(index, 1);
+                    saveAll();
+                    updateQuestsUI();
+                });
+            });
+        }
+
+        function renderBurnedQuestsUI() {
+            const list = document.getElementById('burnedQuestsList');
+            list.innerHTML = '';
+            const burned = Array.isArray(player.burnedQuests) ? player.burnedQuests : [];
+            if (!burned.length) {
+                list.innerHTML = '<p class="inv-placeholder">Нет сгоревших квестов.</p>';
+                return;
+            }
+            burned.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.className = 'quest-card';
+                card.innerHTML = `
+                    <div class="quest-title">${q.locked ? '🔒 ' : ''}${q.title}</div>
+                    <div class="quest-desc">${q.desc || ''}</div>
+                    <div class="quest-reward">Сгорел: ${q.date || 'не указано'}</div>
+                    <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                        <button class="btn burned-lock-btn" data-index="${index}">${q.locked ? 'Разблокировать' : 'Заблокировать'}</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+            document.querySelectorAll('.burned-lock-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    if (!Number.isFinite(index)) return;
+                    toggleBurnedQuestLock(index);
+                });
+            });
+        }
+
+        function updateQuestsUI() {
+            const activeList = document.getElementById('activeQuestsList');
+            const completedList = document.getElementById('completedQuestsList');
+            activeList.innerHTML = '';
+            completedList.innerHTML = '';
+
+            activeQuests.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.className = 'quest-card';
+                card.innerHTML = `
+                    <div class="quest-title">${q.title}</div>
+                    <div class="quest-desc">${q.desc || ''}</div>
+                    <div class="quest-reward">+${q.rewardXp} XP ${q.rewardItem ? '• ' + q.rewardItem : ''}</div>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button class="btn complete-btn" data-index="${index}">Завершить</button>
+                        <button class="btn delete-btn" data-index="${index}">Удалить</button>
+                    </div>
+                `;
+                activeList.appendChild(card);
+            });
+
+            completedQuests.forEach(q => {
+                const card = document.createElement('div');
+                card.className = 'quest-card';
+                card.style.opacity = '0.6';
+                card.innerHTML = `
+                    <div class="quest-title">✅ ${q.title}</div>
+                    <div class="quest-desc">${q.desc || ''}</div>
+                `;
+                completedList.appendChild(card);
+            });
+
+            // Привязка кнопок завершения и удаления
+            document.querySelectorAll('.complete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.target.dataset.index;
+                    completeQuest(index);
+                });
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    if (!Number.isFinite(index)) return;
+                    if (!confirm('Удалить квест?')) return;
+                    activeQuests.splice(index, 1);
+                    saveAll();
+                    updateQuestsUI();
+                });
+            });
+
+            renderDailyQuestsUI();
+            renderBurnedQuestsUI();
+        }
+
+        function addDailyQuest() {
+            const title = document.getElementById('dailyQuestTitle').value.trim();
+            const desc = document.getElementById('dailyQuestDesc').value.trim();
+            if (!title) return alert('Введите название ежедневного квеста!');
+            const daily = Array.isArray(player.dailyQuests) ? player.dailyQuests : [];
+            daily.push({
+                id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                title,
+                desc,
+                completed: false,
+                date: getCurrentLocalDate()
+            });
+            player.dailyQuests = daily;
+            document.getElementById('dailyQuestTitle').value = '';
+            document.getElementById('dailyQuestDesc').value = '';
+            saveAll();
+            updateQuestsUI();
+        }
+
+        function toggleDailyQuestCompleted(index) {
+            const daily = Array.isArray(player.dailyQuests) ? player.dailyQuests : [];
+            if (index < 0 || index >= daily.length) return;
+            daily[index].completed = !daily[index].completed;
+            daily[index].date = getCurrentLocalDate();
+            saveAll();
+            updateQuestsUI();
+        }
+
+        function toggleBurnedQuestLock(index) {
+            const burned = Array.isArray(player.burnedQuests) ? player.burnedQuests : [];
+            if (index < 0 || index >= burned.length) return;
+            burned[index].locked = !burned[index].locked;
+            saveAll();
+            updateQuestsUI();
+        }
+
+        function checkDailyReset() {
+            const currentDate = getCurrentLocalDate();
+            const lastDailyDate = localStorage.getItem('sao_lastDailyDate');
+            let anyChange = false;
+            if (lastDailyDate !== currentDate) {
+                const timestamp = new Date().toISOString();
+                characters.forEach((ch) => {
+                    const daily = Array.isArray(ch.dailyQuests) ? ch.dailyQuests : [];
+                    const burned = Array.isArray(ch.burnedQuests) ? ch.burnedQuests : [];
+                    daily.filter(q => !q.completed).forEach(q => {
+                        burned.push({
+                            id: q.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                            title: q.title,
+                            desc: q.desc,
+                            date: timestamp,
+                            locked: false
+                        });
+                    });
+                    if (daily.length > 0) {
+                        ch.dailyQuests = [];
+                        ch.burnedQuests = burned;
+                        anyChange = true;
+                    }
+                });
+                localStorage.setItem('sao_lastDailyDate', currentDate);
+            }
+
+            const now = new Date();
+            const isCleanupTime = now.getDay() === 0 && now.getHours() === 23 && now.getMinutes() === 30;
+            const lastWeeklyCleanup = localStorage.getItem('sao_lastWeeklyCleanupDate');
+            if (isCleanupTime && lastWeeklyCleanup !== currentDate) {
+                const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+                characters.forEach((ch) => {
+                    ch.burnedQuests = (Array.isArray(ch.burnedQuests) ? ch.burnedQuests : []).filter(q => {
+                        if (q.locked) return true;
+                        const ts = Date.parse(q.date || '');
+                        return Number.isNaN(ts) ? true : ts >= weekAgo;
+                    });
+                });
+                localStorage.setItem('sao_lastWeeklyCleanupDate', currentDate);
+                anyChange = true;
+            }
+
+            if (anyChange) {
+                saveAll();
+                updateQuestsUI();
+            }
+        }
+
+        // --- Логика завершения квеста ---
+        function completeQuest(index) {
+            if (index < 0 || index >= activeQuests.length) return;
+            const quest = activeQuests[index];
+            // Удаляем из активных
+            activeQuests.splice(index, 1);
+            completedQuests.push({...quest});
+            // Добавляем опыт
+            addXp(quest.rewardXp);
+            // Награда предметом
+            if (quest.rewardItem) {
+                inventory.push({ name: quest.rewardItem, equipped: false, modifiers: { hp: 0, mp: 0 } });
+                updateInventoryUI();
+            }
+            // Салют
+            launchFireworks();
+            saveAll();
+            updateQuestsUI();
+        }
+
+        function addXp(amount) {
+            player.xp += amount;
+            let leveled = false;
+            while (player.xp >= player.xpToNext) {
+                player.xp -= player.xpToNext;
+                player.level++;
+                player.xpToNext = Math.floor(player.xpToNext * 1.5);
+                player.maxHp += 20;
+                player.hp = player.maxHp;
+                player.maxMp += 10;
+                player.mp = player.maxMp;
+                leveled = true;
+            }
+            saveAll();
+            updateCharacterUI();
+            if (leveled) {
+                const nameEl = document.getElementById('charName');
+                nameEl.classList.add('level-up');
+                nameEl.addEventListener('animationend', () => nameEl.classList.remove('level-up'), { once: true });
+                playSoundEffect('level');
+            }
+        }
+
+        // --- Добавление квеста ---
+        document.getElementById('addQuestBtn').addEventListener('click', () => {
+            const title = document.getElementById('questTitle').value.trim();
+            const desc = document.getElementById('questDesc').value.trim();
+            const rewardXp = parseInt(document.getElementById('questXp').value, 10) || 50;
+            const rewardItem = document.getElementById('questItem').value.trim();
+            if (rewardXp < 0 || rewardXp > 10000) return alert('Неверное значение награды XP (0–10000).');
+            if (!title) return alert('Введите название квеста!');
+            activeQuests.push({ title, desc, rewardXp, rewardItem: rewardItem || null });
+            document.getElementById('questTitle').value = '';
+            document.getElementById('questDesc').value = '';
+            document.getElementById('questItem').value = '';
+            document.getElementById('questXp').value = '50';
+            saveAll();
+            updateQuestsUI();
+        });
+
+        document.getElementById('addDailyQuestBtn').addEventListener('click', addDailyQuest);
+
+        // --- Вкладки ---
+        const tabs = document.querySelectorAll('.tab-btn, .nav-btn');
+        const contents = document.querySelectorAll('.tab-content');
+        tabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.tab;
+                tabs.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                contents.forEach(c => c.classList.remove('active'));
+                document.getElementById(target).classList.add('active');
+            });
+        });
+
+        // --- Салют (canvas) ---
+        const canvas = document.getElementById('fireworks');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let animationId = null;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8 - 2;
+                this.alpha = 1;
+                this.color = `hsl(${Math.random() * 60 + 180}, 100%, 60%)`; // голубые-зелёные оттенки
+                this.size = Math.random() * 4 + 2;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1; // гравитация
+                this.alpha -= 0.02;
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function launchFireworks() {
+            canvas.style.display = 'block';
+            // Несколько взрывов
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * canvas.width * 0.6 + canvas.width * 0.2;
+                    const y = Math.random() * canvas.height * 0.4 + canvas.height * 0.2;
+                    for (let j = 0; j < 40; j++) {
+                        particles.push(new Particle(x, y));
+                    }
+                }, i * 300);
+            }
+
+            if (animationId) cancelAnimationFrame(animationId);
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles = particles.filter(p => p.alpha > 0);
+                particles.forEach(p => { p.update(); p.draw(ctx); });
+                if (particles.length > 0) {
+                    animationId = requestAnimationFrame(animate);
+                } else {
+                    canvas.style.display = 'none';
+                    animationId = null;
+                }
+            }
+            animate();
+        }
+
+        // --- Инвентарь ---
+        function useItem(index) {
+            const item = inventory[index];
+            if (!item || item.type !== 'consumable') return;
+            player.hp = Math.min(player.maxHp, player.hp + Number(item.modifiers.hp || 0));
+            player.mp = Math.min(player.maxMp, player.mp + Number(item.modifiers.mp || 0));
+            inventory.splice(index, 1);
+            saveAll();
+            updateInventoryUI();
+            updateCharacterUI();
+            if (!playCategorySound(item.type)) playSoundEffect('item');
+        }
+
+        function openItemEditor(index) {
+            const item = inventory[index];
+            if (!item) return;
+            const name = prompt('Название предмета:', item.name);
+            if (name === null) return;
+            const hp = parseInt(prompt('Модификатор HP:', item.modifiers.hp), 10);
+            const mp = parseInt(prompt('Модификатор MP:', item.modifiers.mp), 10);
+            if (Number.isNaN(hp) || Number.isNaN(mp)) return alert('Неверные значения модификаторов.');
+            item.name = name.trim() || item.name;
+            item.modifiers.hp = hp;
+            item.modifiers.mp = mp;
+            saveAll();
+            updateInventoryUI();
+            updateCharacterUI();
+        }
+
+        function updateInventoryUI() {
+            const list = document.getElementById('inventoryList');
+            list.innerHTML = '';
+            if (!inventory.length) {
+                list.innerHTML = '<p class="inv-placeholder">Пусто. Скоро здесь появятся предметы.</p>';
+                return;
+            }
+            const categoryMap = {
+                consumable: player.categorySettings?.consumable?.name || 'Расходники',
+                equipment: player.categorySettings?.equipment?.name || 'Экипировка',
+                quest: player.categorySettings?.quest?.name || 'Квестовые предметы',
+                crafting: player.categorySettings?.crafting?.name || 'Материалы',
+                special: player.categorySettings?.special?.name || 'Особые предметы'
+            };
+            const categories = ['consumable', 'equipment', 'quest', 'crafting', 'special'];
+
+            function renderInventorySection(items, title) {
+                const section = document.createElement('div');
+                section.innerHTML = `<div class="inventory-category">${title}</div>`;
+                items.forEach((it) => {
+                    const idx = inventory.indexOf(it);
+                    const card = document.createElement('div');
+                    card.className = 'quest-card';
+                    card.style.display = 'flex';
+                    card.style.justifyContent = 'space-between';
+                    card.style.alignItems = 'center';
+                    card.style.gap = '10px';
+                    const hpMod = Number(it.modifiers?.hp || 0);
+                    const mpMod = Number(it.modifiers?.mp || 0);
+                    const typeName = categoryMap[it.type] || it.type;
+                    card.innerHTML = `
+                        <div style="flex:1;">
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <strong>${it.name || 'Безымянный предмет'}</strong>
+                                <span style="font-size:12px; color:#aad4f0;">[${typeName}]</span>
+                                ${it.equipped ? '<span style="color:#7cffaa;">[Экипирован]</span>' : ''}
+                            </div>
+                            <div style="font-size:12px; color:#88aacc; margin-top:6px;">
+                                Модификаторы: HP ${hpMod >= 0 ? '+' : ''}${hpMod}, MP ${mpMod >= 0 ? '+' : ''}${mpMod}
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${it.type === 'consumable' ? `<button class="btn use-item" data-index="${idx}">Использовать</button>` : it.type === 'equipment' ? `<button class="btn equip-item" data-index="${idx}">${it.equipped ? 'Снять' : 'Экипировать'}</button>` : ''}
+                            <button class="btn edit-item" data-index="${idx}">✎</button>
+                            <button class="btn remove-item" data-index="${idx}">🗑</button>
+                        </div>
+                    `;
+                    section.appendChild(card);
+                });
+                list.appendChild(section);
+            }
+
+            categories.forEach(catKey => {
+                const items = inventory.filter(item => item.type === catKey);
+                if (items.length) renderInventorySection(items, categoryMap[catKey]);
+            });
+
+            document.querySelectorAll('.remove-item').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    if (!Number.isFinite(index)) return;
+                    inventory.splice(index, 1);
+                    saveAll();
+                    updateInventoryUI();
+                    updateCharacterUI();
+                });
+            });
+            document.querySelectorAll('.equip-item').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    if (!Number.isFinite(index)) return;
+                    inventory[index].equipped = !inventory[index].equipped;
+                    saveAll();
+                    updateInventoryUI();
+                    updateCharacterUI();
+                    if (!playCategorySound(inventory[index].type)) playSoundEffect('equip');
+                });
+            });
+            document.querySelectorAll('.use-item').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    if (!Number.isFinite(index)) return;
+                    useItem(index);
+                });
+            });
+            document.querySelectorAll('.edit-item').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    if (!Number.isFinite(index)) return;
+                    openItemEditor(index);
+                });
+            });
+        }
+
+        document.getElementById('addItemBtn').addEventListener('click', () => {
+            const name = document.getElementById('newItemName').value.trim();
+            const category = document.getElementById('newItemCategory').value;
+            if (!name) return alert('Введите название предмета.');
+            inventory.push({ name, type: category, equipped: false, modifiers: { hp: 0, mp: 0 } });
+            document.getElementById('newItemName').value = '';
+            saveAll();
+            updateInventoryUI();
+        });
+
+        // Экспорт/импорт данных
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const data = { characters };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sao_backup_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            createBackupRecord();
+        });
+
+        document.getElementById('importBtn').addEventListener('click', () => {
+            document.getElementById('importFile').click();
+        });
+
+        document.getElementById('importFile').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const data = JSON.parse(reader.result);
+                    if (Array.isArray(data.characters)) {
+                        characters = data.characters;
+                        activeCharIndex = 0;
+                        saveAll();
+                        loadCurrentCharacter();
+                        renderCharList();
+                        updateCharacterUI();
+                        updateQuestsUI();
+                        updateInventoryUI();
+                        alert('Импорт персонажей завершён.');
+                    } else {
+                        // импорт в текущего персонажа
+                        if (data.player) player = data.player;
+                        if (Array.isArray(data.activeQuests)) activeQuests = data.activeQuests;
+                        if (Array.isArray(data.completedQuests)) completedQuests = data.completedQuests;
+                        if (Array.isArray(data.inventory)) inventory = normalizeInventory(data.inventory);
+                        saveAll();
+                        updateCharacterUI();
+                        updateQuestsUI();
+                        updateInventoryUI();
+                        alert('Импорт в текущего персонажа завершён.');
+                    }
+                } catch (err) {
+                    alert('Ошибка при импорте: неверный файл.');
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            if (!confirm('Очистить все данные и восстановить значения по-умолчанию?')) return;
+            // очистка всех сохранённых персонажей
+            if (confirm('Очистить все персонажи и данные?')) {
+                localStorage.removeItem('sao_characters');
+                localStorage.removeItem('sao_activeCharIndex');
+                characters = [{...defaultPlayer}];
+                activeCharIndex = 0;
+                loadCurrentCharacter();
+                saveAll();
+                renderCharList();
+                updateCharacterUI();
+                updateQuestsUI();
+                updateInventoryUI();
+            }
+        });
+
+        function renderSettingsUI() {
+            // Char settings
+            const charPanel = document.getElementById('charSettingsPanel');
+            charPanel.innerHTML = `
+                <div class="quest-card">
+                    <label style="display:flex; flex-direction:column; gap:6px; font-size:13px;">
+                        <span>Имя персонажа</span>
+                        <input id="charNameInput" type="text" value="${player.name}" style="padding:8px; border:1px solid #00e5ff; border-radius:6px; background:rgba(0,0,0,0.35); color:#fff;">
+                    </label>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                        <button class="btn small" id="saveCharNameBtn">Сохранить имя</button>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+                            <input type="checkbox" id="lockCharName" style="cursor:pointer; width:16px; height:16px;" ${player.syncLocks?.name ? 'checked' : ''}>
+                            <span>Личная: имя персонажа</span>
+                        </label>
+                    </div>
+                    <div style="margin-top:12px;">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+                            <input type="checkbox" id="lockAllChar" style="cursor:pointer; width:16px; height:16px;" ${player.syncLocks?.all ? 'checked' : ''}>
+                            <span style="color:#ffd700;">🔒 Личный: весь персонаж</span>
+                        </label>
+                    </div>
+                </div>
+            `;
+            document.getElementById('saveCharNameBtn').addEventListener('click', () => {
+                const newName = document.getElementById('charNameInput').value.trim();
+                if (!newName) return alert('Имя не может быть пустым.');
+                player.name = newName;
+                saveAll();
+                updateCharacterUI();
+                renderCharList();
+            });
+            document.getElementById('lockCharName').addEventListener('change', (e) => {
+                player.syncLocks.name = e.target.checked;
+                saveAll();
+            });
+            document.getElementById('lockAllChar').addEventListener('change', (e) => {
+                player.syncLocks.all = e.target.checked;
+                saveAll();
+            });
+
+            // Customization settings
+            const customPanel = document.getElementById('customizationSettingsPanel');
+            customPanel.innerHTML = `
+                <div class="quest-card">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+                        <input type="checkbox" id="lockPortrait" style="cursor:pointer; width:16px; height:16px;" ${player.syncLocks?.portraitSrc ? 'checked' : ''}>
+                        <span>Личный: портрет</span>
+                    </label>
+                </div>
+                <div class="quest-card">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+                        <input type="checkbox" id="lockBackground" style="cursor:pointer; width:16px; height:16px;" ${player.syncLocks?.backgroundSrc ? 'checked' : ''}>
+                        <span>Личный: фон</span>
+                    </label>
+                </div>
+                <div class="quest-card">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+                        <input type="checkbox" id="lockBgAudio" style="cursor:pointer; width:16px; height:16px;" ${player.syncLocks?.bgAudioSrc ? 'checked' : ''}>
+                        <span>Личный: фоновая музыка</span>
+                    </label>
+                </div>
+                <div class="quest-card">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+                        <input type="checkbox" id="lockBgAudioEnabled" style="cursor:pointer; width:16px; height:16px;" ${player.syncLocks?.bgAudioEnabled ? 'checked' : ''}>
+                        <span>Личная: включение музыки</span>
+                    </label>
+                </div>
+            `;
+            ['lockPortrait', 'lockBackground', 'lockBgAudio', 'lockBgAudioEnabled'].forEach(id => {
+                const fieldMap = {
+                    lockPortrait: 'portraitSrc',
+                    lockBackground: 'backgroundSrc',
+                    lockBgAudio: 'bgAudioSrc',
+                    lockBgAudioEnabled: 'bgAudioEnabled'
+                };
+                const field = fieldMap[id];
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', (e) => {
+                        player.syncLocks[field] = e.target.checked;
+                        saveAll();
+                    });
+                }
+            });
+
+            // Category settings
+            const catPanel = document.getElementById('categorySettingsPanel');
+            catPanel.innerHTML = '';
+            Object.keys(player.categorySettings || {}).forEach(catKey => {
+                const cat = player.categorySettings[catKey];
+                const card = document.createElement('div');
+                card.className = 'quest-card';
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <strong>${cat.name}</strong>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:12px;">
+                            <input type="checkbox" data-cat-lock="${catKey}" style="cursor:pointer; width:14px; height:14px;" ${cat.syncLocked ? 'checked' : ''}>
+                            Личная: ${cat.name}
+                        </label>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <button class="btn small" data-cat-sound="${catKey}">Установить звук категории</button>
+                        <button class="btn small" data-cat-clear-sound="${catKey}">Удалить звук</button>
+                    </div>
+                    <div style="margin-top:8px; font-size:12px; color:#aad4f0;">
+                        Текущий звук: ${cat.soundSrc ? 'установлен' : 'не установлен'}
+                    </div>
+                `;
+                catPanel.appendChild(card);
+            });
+            document.querySelectorAll('[data-cat-lock]').forEach(el => {
+                el.addEventListener('change', (e) => {
+                    const catKey = e.target.dataset.catLock;
+                    player.categorySettings[catKey].syncLocked = e.target.checked;
+                    saveAll();
+                });
+            });
+            document.querySelectorAll('[data-cat-sound]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const catKey = e.target.dataset.catSound;
+                    categorySoundTarget = catKey;
+                    document.getElementById('categorySoundInput').click();
+                });
+            });
+            document.querySelectorAll('[data-cat-clear-sound]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const catKey = e.target.dataset.catClearSound;
+                    player.categorySettings[catKey].soundSrc = '';
+                    saveAll();
+                    renderSettingsUI();
+                });
+            });
+        }
+
+        document.getElementById('syncImportBtn').addEventListener('click', () => {
+            document.getElementById('syncFileInput').click();
+        });
+
+        document.getElementById('syncFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const importedData = JSON.parse(evt.target.result);
+                    if (importedData.payload) {
+                        syncData.payload = importedData.payload;
+                        syncData.syncId = importedData.syncId || syncData.syncId;
+                        saveSyncData();
+                        applySyncData();
+                        renderSettingsUI();
+                        updateCharacterUI();
+                        updateBackgroundAudio();
+                        document.getElementById('syncStatus').textContent = `Импорт успешен! Синхронизировано свойств: ${Object.keys(importedData.payload).length}`;
+                        playSoundEffect('click');
+                    } else {
+                        document.getElementById('syncStatus').textContent = 'Ошибка: неверный формат файла синхронизации.';
+                    }
+                } catch (err) {
+                    document.getElementById('syncStatus').textContent = 'Ошибка при чтении файла: ' + err.message;
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+
+        document.getElementById('syncDataBtn').addEventListener('click', () => {
+            if (syncCharacterData()) {
+                const exportData = {
+                    syncId: syncData.syncId,
+                    timestamp: new Date().toISOString(),
+                    payload: syncData.payload,
+                    charName: player.name
+                };
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sync_${exportData.charName}_${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                document.getElementById('syncStatus').textContent = 'Синхронизация успешна! Файл загружен: ' + a.download;
+                playSoundEffect('click');
+            } else {
+                document.getElementById('syncStatus').textContent = 'Нет данных для синхронизации (все заблокированы).';
+            }
+        });
+
+        // Render settings on init
+        renderSettingsUI();
+
+        document.querySelectorAll('.accordion-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const targetId = this.dataset.target;
+                const body = document.getElementById(targetId);
+                if (!body) return;
+                document.querySelectorAll('.accordion-body').forEach(b => {
+                    if (b.id !== targetId) b.classList.remove('open');
+                });
+                document.querySelectorAll('.accordion-header').forEach(h => {
+                    if (h.dataset.target !== targetId) h.classList.remove('active');
+                });
+                body.classList.toggle('open');
+                this.classList.toggle('active');
+            });
+        });
+
+        document.getElementById('character').classList.remove('active');
+        document.getElementById('character').classList.add('active');
+
+        document.getElementById('avatarCard').addEventListener('click', function() {
+            const dropdown = document.getElementById('charDropdown');
+            if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        function setupSoundUpload(buttonId, inputId, clearId, soundType) {
+            document.getElementById(buttonId).addEventListener('click', function() {
+                document.getElementById(inputId).click();
+            });
+            document.getElementById(inputId).addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const dataUrl = ev.target.result;
+                    player.customSounds = player.customSounds || { click: null, level: null, item: null, equip: null };
+                    player.customSounds[soundType] = dataUrl;
+                    saveAll();
+                    alert('Звук загружен!');
+                };
+                reader.readAsDataURL(file);
+                e.target.value = '';
+            });
+            document.getElementById(clearId).addEventListener('click', function() {
+                player.customSounds = player.customSounds || { click: null, level: null, item: null, equip: null };
+                player.customSounds[soundType] = null;
+                saveAll();
+                alert('Звук сброшен.');
+            });
+        }
+
+        setupSoundUpload('soundClickUpload', 'soundClickInput', 'soundClickClear', 'click');
+        setupSoundUpload('soundLevelUpload', 'soundLevelInput', 'soundLevelClear', 'level');
+        setupSoundUpload('soundItemUpload', 'soundItemInput', 'soundItemClear', 'item');
+        setupSoundUpload('soundEquipUpload', 'soundEquipInput', 'soundEquipClear', 'equip');
+
+        const originalPlaySound = window.playSoundEffect || function() {};
+        window.playSoundEffect = function(type = 'click') {
+            if (player.customSounds && player.customSounds[type]) {
+                const audio = new Audio(player.customSounds[type]);
+                audio.volume = 0.5;
+                audio.play().catch(() => {});
+                return;
+            }
+            const ac = initAudioContext();
+            if (!ac) return;
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain);
+            gain.connect(ac.destination);
+            const now = ac.currentTime;
+            let frequency = 440;
+            let duration = 0.12;
+            switch (type) {
+                case 'key': frequency = 320; duration = 0.07; break;
+                case 'level': frequency = 760; duration = 0.22; break;
+                case 'item': frequency = 240; duration = 0.16; break;
+                case 'equip': frequency = 520; duration = 0.14; break;
+                case 'click': frequency = 400; duration = 0.08; break;
+            }
+            osc.frequency.setValueAtTime(frequency, now);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.start(now);
+            osc.stop(now + duration + 0.02);
+        };
+
+        checkDailyReset();
+        updateCharacterUI();
+        updateQuestsUI();
+        updateInventoryUI();
+        setInterval(checkDailyReset, 60 * 1000);
+    </script>
+</body>
+</html>
